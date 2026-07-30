@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSA Capacity & Schedule Dashboard</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#ffffff; --panel2:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --brand:#155EEF; --brand-soft:#e8f0ff; --accent:#38BDF8; --green:#16a34a; --amber:#d97706; --red:#dc2626;
+    --green-soft:#dcfce7; --amber-soft:#fef3c7; --red-soft:#fee2e2;
+    --navy1:#050816; --navy2:#0a1833; --navy3:#08101f;
+    --track:#f8fafc; --trackline:#eef2f7; --rowhover:#fafbff;
+    --shadow:0 1px 2px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.06);
+    --radius:14px;
+  }
+  [data-theme="dark"]{
+    --bg:#0b1120; --panel:#141c2e; --panel2:#1a2336; --ink:#e6edf7; --muted:#93a4c0; --line:#26324a;
+    --brand:#3b82f6; --brand-soft:#1c2b46;
+    --green:#34d399; --amber:#fbbf24; --red:#f87171;
+    --green-soft:#0f2e22; --amber-soft:#3a2c0c; --red-soft:#3a1414;
+    --track:#0f1728; --trackline:#1c2740; --rowhover:#182136;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+  .wrap{max-width:1360px;margin:0 auto;padding:0 22px 60px}
+  .topbar{background:linear-gradient(120deg,var(--navy1),var(--navy2) 55%,var(--navy3));color:#fff;box-shadow:0 6px 24px rgba(5,8,22,.28)}
+  .topbar-inner{max-width:1360px;margin:0 auto;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0}
+  .brand{display:flex;align-items:center;gap:14px}
+  .brand .tvag-logo{height:34px;width:auto;display:block}
+  .brand .divider{width:1px;height:30px;background:rgba(255,255,255,.22)}
+  .brand h1{font-size:18px;color:#fff}
+  .brand p{margin:5px 0 0;color:#b9c9e6;font-size:13.5px}
+  .brand p .tz{display:inline-flex;align-items:center;gap:5px;font-weight:800;color:#0a1833;background:var(--accent);border-radius:6px;padding:2px 9px;font-size:12.5px;letter-spacing:.02em;margin-left:2px}
+  .brand .badge-pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border:1px solid rgba(56,189,248,.4);border-radius:999px;padding:2px 9px;margin-bottom:6px}
+  .top-meta{color:#9fb4d8;font-size:12.5px;text-align:right}
+  .top-meta b{color:#fff}
+
+  /* summary cards */
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 14px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .card .lbl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .card .val{font-size:30px;font-weight:800;margin-top:6px;letter-spacing:-.02em}
+  .card .sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .card .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .s-total .strip{background:var(--brand)} .s-avail .strip{background:var(--green)}
+  .s-part .strip{background:var(--amber)} .s-full .strip{background:var(--red)}
+  .s-open .strip{background:#0ea5e9}
+
+  /* toolbar */
+  .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px;box-shadow:var(--shadow)}
+  .seg button{border:0;background:transparent;padding:7px 14px;border-radius:8px;font-weight:600;color:var(--muted);cursor:pointer;font-size:13px}
+  .seg button.on{background:var(--brand);color:#fff}
+  input,select{font-family:inherit;font-size:13.5px;color:var(--ink)}
+  .field{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 11px;box-shadow:var(--shadow)}
+  .field input,.field select{border:0;outline:0;background:transparent}
+  .search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px}
+  .search input{width:100%}
+  .daypick{font-weight:600}
+  .muted-note{color:var(--muted);font-size:12px}
+
+  /* layout */
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .panel .hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .panel .hd h2{font-size:15px}
+  .panel .hd .hint{font-size:11.5px;color:var(--muted)}
+  .panel .bd{padding:14px 16px}
+
+  /* timeline */
+  .tl-scroll{overflow-x:auto}
+  .tl{min-width:820px}
+  .tl-axis{display:grid;grid-template-columns:180px 1fr;align-items:end;padding:0 8px 6px 0}
+  .tl-axis .ticks{position:relative;height:20px}
+  .tl-axis .tick{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--muted);top:0}
+  .tl-axis .tick::after{content:"";position:absolute;left:50%;top:16px;width:1px;height:6px;background:var(--line)}
+  .tl-row{display:grid;grid-template-columns:180px 1fr;align-items:center;border-top:1px solid var(--line);min-height:56px}
+  .tl-row:hover{background:var(--rowhover)}
+  .csa-cell{padding:8px 10px 8px 4px}
+  .csa-cell .nm{font-weight:700;font-size:13.5px}
+  .csa-cell .st{display:inline-flex;align-items:center;gap:5px;margin-top:3px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .st.avail{background:var(--green-soft);color:#166534}
+  .st.part{background:var(--amber-soft);color:#92400e}
+  .st.full{background:var(--red-soft);color:#991b1b}
+  .csa-cell .cap{font-size:11px;color:var(--muted);margin-top:4px}
+  .track{position:relative;min-height:40px;margin:8px 8px 8px 0;background:var(--track);border-radius:8px}
+  .track.gridcols{background-image:linear-gradient(90deg,var(--trackline) 1px,transparent 1px);background-size:calc(100%/11) 100%}
+  .blk{position:absolute;height:30px;border-radius:7px;padding:0 8px;display:flex;align-items:center;color:#fff;font-size:11.5px;font-weight:600;overflow:hidden;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.18);cursor:grab;user-select:none}
+  .blk:active{cursor:grabbing}
+  .blk .lo{font-weight:700;opacity:.85;font-size:10px;margin-left:6px}
+  .blk.conflict{outline:2px solid var(--panel);box-shadow:0 0 0 2px var(--red),0 1px 3px rgba(0,0,0,.3)}
+  .blk .warn{margin-left:6px}
+  .conflict-row{background:var(--red-soft)}
+  .rd{display:flex;align-items:center;height:40px;color:var(--muted);font-size:12px;font-style:italic;padding-left:10px}
+
+  /* assignment panel */
+  .assign .bd{display:flex;flex-direction:column;gap:12px}
+  label.fl{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px}
+  .assign .field{width:100%;padding:0}
+  .assign .field input,.assign .field select{width:100%;padding:9px 11px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{border:0;border-radius:10px;padding:11px 14px;font-weight:700;font-size:13.5px;cursor:pointer}
+  .btn.primary{background:var(--brand);color:#fff}
+  .btn.primary:hover{background:#324bc0}
+  .btn.ghost{background:var(--brand-soft);color:var(--brand)}
+  .results{margin-top:4px;display:flex;flex-direction:column;gap:9px}
+  .rec{border:1px solid var(--line);border-radius:11px;padding:11px 12px}
+  .rec.best{border-color:var(--green);background:linear-gradient(0deg,#f0fdf4,#fff)}
+  .rec .rh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .rec .rh .nm{font-weight:700}
+  .rec .badge{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+  .badge.top{background:var(--green);color:#fff}
+  .badge.ok{background:var(--brand-soft);color:var(--brand)}
+  .rec .why{font-size:11.5px;color:var(--muted);margin-top:5px}
+  .rec .score{font-size:11px;color:var(--muted);margin-top:6px;display:flex;gap:10px;flex-wrap:wrap}
+  .rec .score b{color:var(--ink)}
+  .blocked{opacity:.7}
+  .blocked .badge{background:var(--red-soft);color:#991b1b}
+  .empty{color:var(--muted);font-size:12.5px;text-align:center;padding:14px}
+
+  /* capacity table */
+  .tbl{width:100%;border-collapse:collapse;margin-top:2px}
+  .tbl th,.tbl td{text-align:left;padding:10px 12px;border-top:1px solid var(--line);font-size:13px}
+  .tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-top:0}
+  .tbl tr:hover td{background:var(--rowhover)}
+  .bar{height:8px;border-radius:99px;background:var(--trackline);overflow:hidden;min-width:120px}
+  .bar span{display:block;height:100%}
+  .clientchips{display:flex;gap:5px;flex-wrap:wrap}
+  .chip{font-size:11px;font-weight:600;color:#fff;padding:2px 8px;border-radius:999px}
+  .flagdot{color:var(--amber);cursor:help}
+
+  .weekgrid,.monthgrid{width:100%;border-collapse:collapse}
+  .weekgrid th,.weekgrid td{border:1px solid var(--line);padding:6px;vertical-align:top;font-size:11.5px}
+  .weekgrid th{background:var(--track);font-size:11px;color:var(--muted);text-align:center}
+  .weekgrid .wk-csa{font-weight:700;font-size:12px;white-space:nowrap}
+  .wk-blk{border-radius:6px;color:#fff;padding:3px 6px;margin:2px 0;font-size:10.5px;font-weight:600}
+  .wk-rd{color:var(--muted);opacity:.55;text-align:center;font-style:italic}
+  .monthgrid td{height:78px;width:14.28%}
+  .monthgrid .dn{font-weight:700;color:var(--muted);font-size:11px}
+  .monthgrid .wd{background:var(--track)}
+  .m-load{margin-top:4px;font-size:10px;color:var(--muted)}
+  .m-bar{height:5px;border-radius:99px;background:var(--trackline);margin-top:3px;overflow:hidden}
+  .m-bar span{display:block;height:100%;background:var(--brand)}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:12px;font-size:11.5px;color:var(--muted)}
+  .legend .k{display:inline-flex;align-items:center;gap:6px}
+  .legend .sw{width:12px;height:12px;border-radius:4px}
+  .foot{margin-top:22px;color:var(--muted);font-size:11.5px;text-align:center}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s}
+  .toast.show{opacity:1}
+
+  /* logo pill so the dark wordmark stays visible on the navy bar */
+  .logo-pill{background:#fff;border-radius:10px;padding:7px 12px;display:inline-flex;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .logo-pill img{height:26px;width:auto;display:block}
+
+  /* header actions + theme toggle */
+  .head-actions{display:flex;align-items:center;gap:12px}
+  .theme-toggle{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#dbe6fb;border-radius:999px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:12.5px}
+  .theme-toggle:hover{background:rgba(255,255,255,.14)}
+
+  /* clickable conflict pill in summary + header */
+  .conf-link{cursor:pointer;border-bottom:1px dashed currentColor}
+  .conf-link:hover{opacity:.85}
+  .card.s-open.hasconf{cursor:pointer}
+  .card .conf-tag{display:inline-flex;align-items:center;gap:5px;margin-top:8px;font-size:11px;font-weight:800;color:#fff;background:var(--red);padding:3px 9px;border-radius:999px;cursor:pointer}
+  .card .conf-tag:hover{filter:brightness(1.08)}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(5,8,22,.55);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);max-width:600px;width:100%;max-height:82vh;overflow:auto}
+  .modal .mh{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+  .modal .mh h3{font-size:16px}
+  .modal .mh .x{border:0;background:var(--brand-soft);color:var(--brand);width:30px;height:30px;border-radius:8px;font-size:16px;cursor:pointer;font-weight:700}
+  .modal .mb{padding:14px 18px 18px}
+  .cf-item{border:1px solid var(--line);border-left:4px solid var(--red);border-radius:11px;padding:12px 14px;margin-bottom:11px}
+  .cf-item .cf-csa{font-weight:800;font-size:14px}
+  .cf-item .cf-day{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-left:8px}
+  .cf-clients{display:flex;flex-direction:column;gap:6px;margin-top:9px}
+  .cf-c{display:flex;align-items:center;gap:8px;font-size:12.5px}
+  .cf-c .dot{width:11px;height:11px;border-radius:3px;flex:none}
+  .cf-c .win{color:var(--muted)}
+  .cf-over{margin-top:9px;font-size:12px;color:var(--red);font-weight:700}
+  .cf-fix{margin-top:6px;font-size:12px;color:var(--muted)}
+  .modal .empty{padding:26px}
+
+  @media(max-width:1080px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+  @media(max-width:560px){.cards{grid-template-columns:1fr}.wrap{padding:14px}.head-actions .lbl-txt{display:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <header class="top">
+      <div class="brand">
+        <span class="logo-pill">
+          <img id="tvagLogo" src="https://staging.teams.thevagroup.com/the-va-group-logo.png" alt="The VA Group"
+               onerror="this.parentNode.style.display='none';document.getElementById('logoFallback').style.display='flex'">
+        </span>
+        <div id="logoFallback" style="display:none;align-items:center;gap:8px">
+          <div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--brand),var(--accent));display:grid;place-items:center;color:#fff;font-weight:800">VA</div>
+          <span style="font-weight:800;font-size:16px;color:#fff">The VA Group</span>
+        </div>
+        <div class="divider"></div>
+        <div>
+          <span class="badge-pill">Capacity Planning</span>
+          <h1>CSA Capacity &amp; Schedule Dashboard</h1>
+          <p>Team scheduling and capacity planning &middot; 8h/day per CSA <span class="tz" id="schedPill">&#128336; All schedule times in Pacific (PDT)</span></p>
+        </div>
+      </div>
+      <div class="head-actions">
+        <div class="top-meta" id="topMeta"></div>
+        <button class="theme-toggle" id="themeToggle" title="Toggle dark / light">
+          <span id="themeIcon">&#9790;</span><span class="lbl-txt" id="themeLbl">Dark</span>
+        </button>
+      </div>
+    </header>
+  </div>
+</div>
+<div class="wrap">
+  <section class="cards" id="cards" style="margin-top:20px"></section>
+
+  <div class="toolbar">
+    <div class="seg" id="viewSeg">
+      <button data-v="day" class="on">Daily</button>
+      <button data-v="week">Weekly</button>
+      <button data-v="month">Monthly</button>
+    </div>
+    <div class="field daypick" id="dayWrap">
+      <select id="daySel">
+        <option value="Mon">Monday</option><option value="Tue">Tuesday</option>
+        <option value="Wed">Wednesday</option><option value="Thu">Thursday</option>
+        <option value="Fri">Friday</option>
+      </select>
+    </div>
+    <div class="field search"><span>&#128269;</span><input id="q" placeholder="Search CSA, client, or status..."></div>
+    <div class="field"><select id="statusFilter">
+      <option value="">All statuses</option>
+      <option value="Available">Available</option>
+      <option value="Partially Allocated">Partially Allocated</option>
+      <option value="Fully Allocated">Fully Allocated</option>
+    </select></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <div class="hd">
+          <h2 id="tlTitle">Daily Timeline</h2>
+          <span class="hint">Drag a block to reschedule &middot; conflicts ringed in red</span>
+        </div>
+        <div class="bd" id="viewArea"></div>
+      </div>
+
+      <div class="panel" style="margin-top:18px">
+        <div class="hd"><h2>Capacity by CSA</h2><span class="hint" id="capHint"></span></div>
+        <div class="bd" style="padding:0">
+          <table class="tbl" id="capTable"></table>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel assign">
+        <div class="hd"><h2>Find Best CSA</h2><span class="hint">New client</span></div>
+        <div class="bd">
+          <div>
+            <label class="fl">Client name</label>
+            <div class="field"><input id="acName" placeholder="e.g. Northwind Retail"></div>
+          </div>
+          <div>
+            <label class="fl">Client type</label>
+            <div class="field"><select id="acType">
+              <option value="Full time">Full-Time (8h/day)</option>
+              <option value="Part time" selected>Part-Time (4h/day)</option>
+            </select></div>
+          </div>
+          <div>
+            <label class="fl">Time zone of these times</label>
+            <div class="field"><select id="acTz">
+              <option value="America/Los_Angeles" selected>Pacific (schedule default)</option>
+              <option value="America/Denver">Mountain</option>
+              <option value="America/Phoenix">Arizona (no DST)</option>
+              <option value="America/Chicago">Central</option>
+              <option value="America/New_York">Eastern</option>
+            </select></div>
+            <div class="muted-note" id="acTzNote" style="margin-top:6px"></div>
+          </div>
+          <div class="row2">
+            <div><label class="fl">Start time</label><div class="field"><input id="acStart" type="time" value="13:00"></div></div>
+            <div><label class="fl">End time</label><div class="field"><input id="acEnd" type="time" value="17:00"></div></div>
+          </div>
+          <div class="muted-note" id="acDur"></div>
+          <button class="btn primary" id="findBtn">Find Best CSA</button>
+          <div class="results" id="acResults"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><b>The VA Group</b> &middot; Source: Google Sheet &ldquo;CSA Schedule&rdquo; &middot; Working days Mon&ndash;Fri (Sun/Sat marked RD) &middot; Capacity rule: Full-Time = 8h, Part-Time = 4h, max 8h/day.</div>
+</div>
+
+<div class="modal-bg" id="confModal">
+  <div class="modal">
+    <div class="mh"><h3 id="confTitle">Schedule Conflicts</h3><button class="x" id="confClose">&times;</button></div>
+    <div class="mb" id="confBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- Data (parsed from the CSA Schedule sheet) ---------------- */
+const DAYS = ['Mon','Tue','Wed','Thu','Fri'];
+const DAYMAP = {M:'Mon',T:'Tue',W:'Wed',R:'Thu',F:'Fri'};
+function expandDays(code){ return code.split('').map(c=>DAYMAP[c]); }
+function toMin(str){ // "7:00 AM" -> minutes
+  const m = str.trim().match(/(\d+):(\d+)\s*(AM|PM)/i);
+  let h=+m[1]%12; if(/pm/i.test(m[3])) h+=12; return h*60 + (+m[2]);
+}
+function fmt(min){
+  let h=Math.floor(min/60), m=min%60, ap=h>=12?'PM':'AM'; let hh=h%12; if(hh===0)hh=12;
+  return hh+':'+String(m).padStart(2,'0')+' '+ap;
+}
+const RAW = [
+  {csa:'Anna Macaya',client:'THE NYBB GROUP, LLC.',type:'Part time',days:'MTWRF',start:'7:00 AM',end:'11:00 AM'},
+  {csa:'Anna Macaya',client:'Structural Prime Builder Inc.',type:'Part time',days:'MTWRF',start:'12:00 PM',end:'4:00 PM'},
+  {csa:'Matthew Conopio',client:'ATS Group',type:'Part time',days:'MTWRF',start:'7:00 AM',end:'11:00 AM'},
+  {csa:'Matthew Conopio',client:'3P-Events, LLC',type:'Part time',days:'MTWRF',start:'8:00 AM',end:'12:00 PM'},
+  {csa:'Chris Uddin',client:'Majestic Property Management, Inc',type:'Part time',days:'MTWRF',start:'9:00 AM',end:'1:00 PM'},
+  {csa:'Chris Uddin',client:'Souk Systems (MAVIS)',type:'Part time',days:'MTWRF',start:'9:00 AM',end:'1:00 PM'},
+  {csa:'Ericka Meged E. Delmo',client:'PayDiverse, LLC.',type:'Full time',days:'MTWRF',start:'7:00 AM',end:'4:00 PM'},
+  {csa:'Jerickson Fugaban',client:'Western Optical Supply Inc',type:'Part time',days:'MTWRF',start:'8:00 AM',end:'12:00 PM'},
+  {csa:'Kean Sanidad',client:'Khader Law',type:'Part time',days:'MWF',start:'6:00 AM',end:'10:00 AM',altDays:'TR',altStart:'9:00 AM',altEnd:'1:00 PM'},
+  {csa:'Kean Sanidad',client:'Tactical & Rescue Gear, Ltd.',type:'Part time',days:'MTWRF',start:'11:00 AM',end:'3:00 PM'},
+  {csa:'Lou Angus',client:'The Little Lighthouse Foundation',type:'Part time',days:'MTWRF',start:'8:00 AM',end:'12:00 PM'},
+  {csa:'Rose Ann Bocado',client:'Dornerland Bookkeeping',type:'Part time',days:'MTWRF',start:'7:30 AM',end:'11:30 AM'},
+  {csa:'Rose Ann Bocado',client:'Diamond Mind',type:'Part time',days:'MTWRF',start:'12:00 PM',end:'4:00 PM'},
+  {csa:'Floricel Villanueva',client:'Knowbility',type:'Full time',days:'MTWRF',start:'7:30 AM',end:'4:00 PM'},
+];
+
+/* client color palette */
+const PALETTE = ['#155EEF','#0891b2','#7c3aed','#2f9e44','#e8590c','#d6336c','#0b7285','#f08c00','#5f3dc4','#c2255c','#2b8a3e','#a61e4d','#495057','#1098ad','#364fc7'];
+const clientColors = {};
+let ci=0;
+RAW.forEach(r=>{ if(!(r.client in clientColors)){ clientColors[r.client]=PALETTE[ci%PALETTE.length]; ci++; } });
+
+/* Build assignment objects with per-day intervals. Editable start offsets live here. */
+let ASSIGN = RAW.map((r,i)=>{
+  const dur = toMin(r.end)-toMin(r.start);
+  const a = {id:i, csa:r.csa, client:r.client, type:r.type, flag:r.flag||null,
+             color:clientColors[r.client], hours: r.type==='Full time'?8:4, dur};
+  a.byDay = {};
+  expandDays(r.days).forEach(d=> a.byDay[d]={start:toMin(r.start), end:toMin(r.end)});
+  if(r.altDays) expandDays(r.altDays).forEach(d=> a.byDay[d]={start:toMin(r.altStart), end:toMin(r.altEnd)});
+  return a;
+});
+
+const CSAS = [...new Set(RAW.map(r=>r.csa))];
+
+/* ---------------- Capacity + conflict engine ---------------- */
+function overlap(a,b){ return a.start < b.end && b.start < a.end; }
+
+function csaModel(name, day){
+  const items = ASSIGN.filter(a=>a.csa===name && a.byDay[day]);
+  let assigned=0; items.forEach(a=> assigned+=a.hours);
+  const remaining = Math.max(0, 8-assigned);
+  let status = assigned<=0?'Available':(assigned>=8?'Fully Allocated':'Partially Allocated');
+  // conflicts within the day
+  const conflictIds = new Set();
+  for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){
+    if(overlap(items[i].byDay[day], items[j].byDay[day])){ conflictIds.add(items[i].id); conflictIds.add(items[j].id); }
+  }
+  return {name, day, items, assigned, remaining, status, conflicts:[...conflictIds], hasConflict:conflictIds.size>0};
+}
+
+function currentDay(){ return document.getElementById('daySel').value; }
+
+/* ---------------- Summary cards ---------------- */
+function renderCards(){
+  const day = currentDay();
+  const models = CSAS.map(n=>csaModel(n,day));
+  const avail = models.filter(m=>m.status==='Available').length;
+  const part = models.filter(m=>m.status==='Partially Allocated').length;
+  const full = models.filter(m=>m.status==='Fully Allocated').length;
+  const open = models.reduce((s,m)=>s+m.remaining,0);
+  const conf = models.filter(m=>m.hasConflict).length;
+  const C = [
+    ['s-total','Total CSAs',CSAS.length,'on the team',''],
+    ['s-avail','Available',avail,'0 hours booked',''],
+    ['s-part','Partially Allocated',part,'room for more',''],
+    ['s-full','Fully Allocated',full,'at 8h capacity',''],
+    ['s-open','Total Open Hours',open+'h','across the team',
+      conf?`<div class="conf-tag" onclick="openConflicts()">&#9888; ${conf} conflict${conf>1?'s':''} &middot; view</div>`:''],
+  ];
+  document.getElementById('cards').innerHTML = C.map(c=>`
+    <div class="card ${c[0]}"><div class="strip"></div>
+      <div class="lbl">${c[1]}</div><div class="val">${c[2]}</div><div class="sub">${c[3]}</div>${c[4]}</div>`).join('');
+  document.getElementById('topMeta').innerHTML =
+    `Viewing <b>${day}</b> &middot; ${CSAS.length} CSAs &middot; <b>${open}h</b> open` +
+    (conf?` &middot; <span class="conf-link" style="color:#fca5a5;font-weight:700" onclick="openConflicts()">${conf} conflict${conf>1?'s':''}</span>`:'');
+}
+
+/* ---------------- Conflicts detail + modal ---------------- */
+function allConflictsForDay(day){
+  const out=[];
+  CSAS.forEach(n=>{
+    const items = ASSIGN.filter(a=>a.csa===n && a.byDay[day]);
+    for(let i=0;i<items.length;i++) for(let j=i+1;j<items.length;j++){
+      const A=items[i], B=items[j], ia=A.byDay[day], ib=B.byDay[day];
+      if(overlap(ia,ib)){
+        const os=Math.max(ia.start,ib.start), oe=Math.min(ia.end,ib.end);
+        out.push({csa:n, day, a:A, b:B, ia, ib, overStart:os, overEnd:oe, overH:((oe-os)/60)});
+      }
+    }
+  });
+  return out;
+}
+function openConflicts(){
+  const day=currentDay();
+  const list=allConflictsForDay(day);
+  document.getElementById('confTitle').innerHTML = `Schedule Conflicts &middot; ${day} <span style="color:var(--muted);font-weight:600;font-size:13px">(${list.length})</span>`;
+  const body=document.getElementById('confBody');
+  if(!list.length){ body.innerHTML=`<div class="empty">No conflicts on ${day}. Every CSA's clients fit without overlap.</div>`; }
+  else body.innerHTML = list.map(c=>`
+    <div class="cf-item">
+      <span class="cf-csa">${c.csa}</span><span class="cf-day">${c.day}</span>
+      <div class="cf-clients">
+        <div class="cf-c"><span class="dot" style="background:${c.a.color}"></span><b>${c.a.client}</b><span class="win">${fmt(c.ia.start)}&ndash;${fmt(c.ia.end)} &middot; ${c.a.type}</span></div>
+        <div class="cf-c"><span class="dot" style="background:${c.b.color}"></span><b>${c.b.client}</b><span class="win">${fmt(c.ib.start)}&ndash;${fmt(c.ib.end)} &middot; ${c.b.type}</span></div>
+      </div>
+      <div class="cf-over">&#9888; Overlap: ${fmt(c.overStart)}&ndash;${fmt(c.overEnd)} (${c.overH}h double-booked)</div>
+      <div class="cf-fix">Fix: drag one block on the timeline to a clear window, or reassign a client to a CSA with open hours.</div>
+    </div>`).join('');
+  document.getElementById('confModal').classList.add('show');
+}
+function closeConflicts(){ document.getElementById('confModal').classList.remove('show'); }
+
+/* ---------------- Timeline (daily) ---------------- */
+const AX_START=6*60, AX_END=17*60, AX_SPAN=AX_END-AX_START; // 6AM..5PM
+function pct(min){ return ((min-AX_START)/AX_SPAN)*100; }
+
+function passesFilter(model){
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const sf = document.getElementById('statusFilter').value;
+  if(sf && model.status!==sf) return false;
+  if(!q) return true;
+  if(model.name.toLowerCase().includes(q)) return true;
+  if(model.status.toLowerCase().includes(q)) return true;
+  return model.items.some(a=>a.client.toLowerCase().includes(q));
+}
+
+function renderTimeline(){
+  const day = currentDay();
+  const area = document.getElementById('viewArea');
+  const models = CSAS.map(n=>csaModel(n,day)).filter(passesFilter);
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  let ticks='';
+  for(let t=AX_START;t<=AX_END;t+=60){ ticks+=`<div class="tick" style="left:${pct(t)}%">${fmt(t).replace(':00','')}</div>`; }
+  let rows = models.map(m=>{
+    const st = m.status==='Available'?'avail':(m.status==='Fully Allocated'?'full':'part');
+    // lane-pack overlapping blocks so each stays fully visible (stacked rows)
+    const sorted = m.items.map(a=>({a, iv:a.byDay[day]})).sort((x,y)=>x.iv.start-y.iv.start || x.iv.end-y.iv.end);
+    const laneEnds=[];
+    sorted.forEach(o=>{
+      let lane = laneEnds.findIndex(end=> end<=o.iv.start);
+      if(lane===-1){ lane=laneEnds.length; laneEnds.push(o.iv.end); } else laneEnds[lane]=o.iv.end;
+      o.lane=lane;
+    });
+    const laneCount = Math.max(1, laneEnds.length);
+    const rowH = laneCount*34 + 8;
+    const blocks = sorted.map(o=>{
+      const a=o.a, iv=o.iv;
+      const isC = m.conflicts.includes(a.id);
+      const dim = q && !a.client.toLowerCase().includes(q) && !m.name.toLowerCase().includes(q) ? 'opacity:.35;' : '';
+      const top = 4 + o.lane*34;
+      return `<div class="blk ${isC?'conflict':''}" draggable="true" data-id="${a.id}" data-day="${day}" data-lane="${o.lane}"
+                style="left:${pct(iv.start)}%;width:${(iv.end-iv.start)/AX_SPAN*100}%;top:${top}px;background:${a.color};${dim}"
+                title="${a.client} — ${fmt(iv.start)} to ${fmt(iv.end)} (${a.type})${a.flag?' • '+a.flag:''}">
+                <span class="cl">${a.client}</span><span class="lo">${fmt(iv.start)}</span>${isC?'<span class="warn">&#9888;</span>':''}${a.flag?'<span class="warn flagdot">&#9873;</span>':''}
+              </div>`;
+    }).join('');
+    return `<div class="tl-row ${m.hasConflict?'conflict-row':''}">
+      <div class="csa-cell">
+        <div class="nm">${m.name}</div>
+        <span class="st ${st}">${m.status}${m.hasConflict?' &#9888;':''}</span>
+        <div class="cap">${m.assigned}h used &middot; ${m.remaining}h open</div>
+      </div>
+      <div class="track gridcols" data-csa="${m.name}" style="height:${rowH}px">${blocks}</div>
+    </div>`;
+  }).join('');
+  if(!models.length) rows = `<div class="empty">No CSAs match your search.</div>`;
+  area.innerHTML = `<div class="tl-scroll"><div class="tl">
+      <div class="tl-axis"><div></div><div class="ticks">${ticks}</div></div>
+      ${rows}
+    </div></div>
+    <div class="legend">${Object.keys(clientColors).map(c=>`<span class="k"><span class="sw" style="background:${clientColors[c]}"></span>${c}</span>`).join('')}</div>`;
+  wireDrag();
+}
+
+/* ---------------- Drag to reschedule ---------------- */
+let drag=null;
+function wireDrag(){
+  document.querySelectorAll('.blk').forEach(el=>{
+    el.addEventListener('dragstart',e=>{
+      drag={id:+el.dataset.id, day:el.dataset.day, grabX:e.offsetX, w:el.offsetWidth};
+      e.dataTransfer.effectAllowed='move';
+    });
+  });
+  document.querySelectorAll('.track').forEach(tr=>{
+    tr.addEventListener('dragover',e=>e.preventDefault());
+    tr.addEventListener('drop',e=>{
+      e.preventDefault(); if(!drag) return;
+      const a=ASSIGN.find(x=>x.id===drag.id); if(a.csa!==tr.dataset.csa) { toast('Move blocks within the same CSA row'); return; }
+      const rect=tr.getBoundingClientRect();
+      let x=e.clientX-rect.left-drag.grabX;
+      let startMin=AX_START + (x/rect.width)*AX_SPAN;
+      startMin=Math.round(startMin/15)*15; // snap 15 min
+      const dur=a.byDay[drag.day].end-a.byDay[drag.day].start;
+      startMin=Math.max(AX_START,Math.min(startMin,AX_END-dur));
+      a.byDay[drag.day]={start:startMin,end:startMin+dur};
+      drag=null; refresh(); toast(`${a.client} moved to ${fmt(startMin)} on ${drag?drag.day:document.getElementById('daySel').value}`);
+    });
+  });
+}
+
+/* ---------------- Weekly view ---------------- */
+function renderWeek(){
+  const area=document.getElementById('viewArea');
+  const models = CSAS.filter(n=>passesFilter(csaModel(n,currentDay())));
+  let head = `<tr><th style="text-align:left">CSA</th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr>`;
+  let body = CSAS.map(n=>{
+    if(!models.includes(n)) return '';
+    const cells = DAYS.map(d=>{
+      const m=csaModel(n,d);
+      const inner = m.items.map(a=>{
+        const iv=a.byDay[d]; const isC=m.conflicts.includes(a.id);
+        return `<div class="wk-blk" style="background:${a.color};${isC?'outline:2px solid var(--red);':''}" title="${a.client}">${fmt(iv.start).replace(':00','')}–${fmt(iv.end).replace(':00','')}</div>`;
+      }).join('') || '<div class="wk-rd">—</div>';
+      return `<td>${inner}</td>`;
+    }).join('');
+    return `<tr><td class="wk-csa">${n}</td>${cells}</tr>`;
+  }).join('');
+  area.innerHTML = `<div class="tl-scroll"><table class="weekgrid">${head}${body}</table></div>
+    <div class="legend"><span class="k"><span class="sw" style="background:var(--red)"></span>red outline = schedule conflict</span></div>`;
+}
+
+/* ---------------- Monthly view ---------------- */
+function renderMonth(){
+  const area=document.getElementById('viewArea');
+  // Build a generic month grid (4 weeks) showing average daily team load per weekday.
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let head=`<tr>${dayNames.map(d=>`<th>${d}</th>`).join('')}</tr>`;
+  const load={}; DAYS.forEach(d=>{ const tot=CSAS.reduce((s,n)=>s+csaModel(n,d).assigned,0); load[d]=tot; });
+  const maxLoad=CSAS.length*8;
+  let rows='';
+  let dayNum=1;
+  for(let w=0;w<4;w++){
+    let r='<tr>';
+    for(let col=0;col<7;col++){
+      const dn=dayNames[col]; const work=DAYS.includes(dn);
+      if(work){
+        const pctv=Math.round(load[dn]/maxLoad*100);
+        r+=`<td class="wd"><div class="dn">${dayNum}</div><div class="m-load">${load[dn]}/${maxLoad}h &middot; ${pctv}%</div><div class="m-bar"><span style="width:${pctv}%"></span></div></td>`;
+      } else {
+        r+=`<td><div class="dn">${dayNum}</div><div class="m-load" style="color:#cbd5e1">Rest day</div></td>`;
+      }
+      dayNum++;
+    }
+    r+='</tr>'; rows+=r;
+  }
+  area.innerHTML=`<table class="weekgrid monthgrid">${head}${rows}</table>
+    <div class="muted-note" style="margin-top:10px">Monthly view rolls the recurring weekly pattern across the month. Bars show total team hours booked vs. ${maxLoad}h max capacity per weekday.</div>`;
+}
+
+/* ---------------- Capacity table ---------------- */
+function renderTable(){
+  const day=currentDay();
+  const models = CSAS.map(n=>csaModel(n,day)).filter(passesFilter);
+  const t=document.getElementById('capTable');
+  let head=`<tr><th>CSA</th><th>Clients (${day})</th><th>Assigned</th><th>Open</th><th>Load</th><th>Status</th></tr>`;
+  let body=models.map(m=>{
+    const st=m.status==='Available'?'avail':(m.status==='Fully Allocated'?'full':'part');
+    const barColor=m.hasConflict?'var(--red)':(m.status==='Fully Allocated'?'#dc2626':m.status==='Partially Allocated'?'#d97706':'#16a34a');
+    const chips=m.items.map(a=>`<span class="chip" style="background:${a.color}" title="${a.client} ${fmt(a.byDay[day].start)}–${fmt(a.byDay[day].end)}">${a.client.length>22?a.client.slice(0,20)+'…':a.client}${a.flag?' &#9873;':''}</span>`).join('') || '<span class="muted-note">none</span>';
+    return `<tr>
+      <td><b>${m.name}</b></td>
+      <td><div class="clientchips">${chips}</div></td>
+      <td>${m.assigned}h</td><td>${m.remaining}h</td>
+      <td><div class="bar"><span style="width:${m.assigned/8*100}%;background:${barColor}"></span></div></td>
+      <td><span class="st ${st}">${m.status}${m.hasConflict?' &#9888;':''}</span></td>
+    </tr>`;
+  }).join('');
+  t.innerHTML=head+body;
+  const flagged=ASSIGN.filter(a=>a.flag).length;
+  document.getElementById('capHint').innerHTML = flagged?`&#9873; ${flagged} data note — hover the flag`:'';
+}
+
+/* ---------------- Find Best CSA ---------------- */
+function timeToMin(v){ const [h,m]=v.split(':').map(Number); return h*60+m; }
+/* timezone: schedule lives in Pacific. Entered times convert to Pacific before matching.
+   DST-aware via the browser's Intl timezone database, resolved for the reference date. */
+const SCHED_ZONE='America/Los_Angeles';
+function offToUTC(tz,date){
+  const p={};
+  new Intl.DateTimeFormat('en-US',{timeZone:tz,hour12:false,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})
+    .formatToParts(date).forEach(x=>p[x.type]=x.value);
+  const asUTC=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);
+  return Math.round((date.getTime()-asUTC)/60000); // minutes to add to local wall time for UTC
+}
+function tzAbbr(tz,date){
+  const f=new Intl.DateTimeFormat('en-US',{timeZone:tz,timeZoneName:'short'}).formatToParts(date).find(p=>p.type==='timeZoneName');
+  return f?f.value:tz;
+}
+function refDate(){ return new Date(); }                 // AUTO: always today
+function clientZone(){ return document.getElementById('acTz').value; }
+function tzLabel(){ return tzAbbr(clientZone(), refDate()); }
+function schedLabel(){ return tzAbbr(SCHED_ZONE, refDate()); }
+function toPdt(localMin){ const d=refDate(); return localMin + offToUTC(clientZone(),d) - offToUTC(SCHED_ZONE,d); }
+function fmtDate(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function updateTzNote(){
+  const note=document.getElementById('acTzNote'); if(!note) return;
+  const d=refDate();
+  note.innerHTML = `DST auto-resolved for <b>${fmtDate(d)}</b> &middot; ${tzLabel()} &rarr; schedule ${schedLabel()}`;
+  const pill=document.getElementById('schedPill'); if(pill) pill.innerHTML=`&#128336; All schedule times in Pacific (${schedLabel()})`;
+}
+function updateDur(){
+  const sIn=timeToMin(document.getElementById('acStart').value), eIn=timeToMin(document.getElementById('acEnd').value);
+  const type=document.getElementById('acType').value; const need=type==='Full time'?8:4;
+  const span=(eIn-sIn)/60; const lbl=tzLabel(); const sch=schedLabel();
+  const sameZone = clientZone()===SCHED_ZONE;
+  const conv = !sameZone ? ` &middot; <b>${fmt(toPdt(sIn))}&ndash;${fmt(toPdt(eIn))} ${sch}</b>` : '';
+  updateTzNote();
+  document.getElementById('acDur').innerHTML = eIn>sIn
+    ? `Requested: <b>${span}h</b> in <b>${lbl}</b>${conv} &middot; capacity charge <b>${need}h</b> (${type})`
+    : `<span style="color:var(--red)">End time must be after start time.</span>`;
+}
+
+function findBest(){
+  const day=currentDay();
+  const name=document.getElementById('acName').value.trim()||'New client';
+  const type=document.getElementById('acType').value;
+  const sIn=timeToMin(document.getElementById('acStart').value), eIn=timeToMin(document.getElementById('acEnd').value);
+  const lbl=tzLabel(); const sch=schedLabel();
+  const s=toPdt(sIn), e=toPdt(eIn); // matched against the Pacific schedule
+  const need=type==='Full time'?8:4;
+  const box=document.getElementById('acResults');
+  if(eIn<=sIn){ box.innerHTML=`<div class="empty">Fix the times: end must be after start.</div>`; return; }
+  const req={start:s,end:e};
+  const sameZone = clientZone()===SCHED_ZONE;
+  const winTxt = sameZone ? `${fmt(s)}&ndash;${fmt(e)} ${sch}` : `${fmt(s)}&ndash;${fmt(e)} ${sch} (${fmt(sIn)}&ndash;${fmt(eIn)} ${lbl})`;
+
+  const teamAvg = CSAS.reduce((sum,n)=>sum+csaModel(n,day).assigned,0)/CSAS.length;
+
+  const scored = CSAS.map(n=>{
+    const m=csaModel(n,day);
+    const conflictWith = m.items.filter(a=>overlap(a.byDay[day],req)).map(a=>a.client);
+    const fits = m.remaining>=need;
+    const noConf = conflictWith.length===0;
+    const eligible = fits && noConf;
+    // ranking score: conflicts first, capacity, most open, balance
+    let score=0; const reasons=[];
+    if(noConf){ score+=1000; } else reasons.push('conflict with '+conflictWith.join(', '));
+    if(fits){ score+=500; } else reasons.push(`only ${m.remaining}h open, needs ${need}h`);
+    score+=m.remaining*10; // most available hours
+    // balance: prefer CSAs below team average load (lighter workload gets the point)
+    if(m.assigned<=teamAvg) score+=25;
+    return {m,name:n,eligible,conflictWith,fits,score,reasons};
+  });
+
+  const eligible = scored.filter(x=>x.eligible).sort((a,b)=>b.score-a.score);
+  const blocked = scored.filter(x=>!x.eligible).sort((a,b)=>b.score-a.score);
+
+  let html='';
+  if(eligible.length){
+    html += eligible.map((x,i)=>{
+      const afterLoad=x.m.assigned+need;
+      return `<div class="rec ${i===0?'best':''}">
+        <div class="rh"><span class="nm">${x.name}</span>
+          <span class="badge ${i===0?'top':'ok'}">${i===0?'Best match':'Option '+(i+1)}</span></div>
+        <div class="why">${i===0?'Top pick: ':''}No conflicts in the ${winTxt} window, and enough capacity for a ${type.toLowerCase()} client.</div>
+        <div class="score"><span>Open now: <b>${x.m.remaining}h</b></span><span>After assign: <b>${afterLoad}/8h</b></span><span>Current load: <b>${x.m.assigned}h</b>${x.m.assigned<=teamAvg?' &middot; below avg':''}</span></div>
+      </div>`;
+    }).join('');
+  } else {
+    html += `<div class="empty">No CSA can take <b>${name}</b> at ${winTxt} without a conflict or going over 8h. Try a different window or split the client part-time.</div>`;
+  }
+  if(blocked.length){
+    html += `<div class="muted-note" style="margin-top:6px">Not eligible</div>` + blocked.slice(0,6).map(x=>`
+      <div class="rec blocked"><div class="rh"><span class="nm">${x.name}</span>
+        <span class="badge">Blocked</span></div>
+        <div class="why">${x.reasons.join(' &middot; ')}</div></div>`).join('');
+  }
+  box.innerHTML=html;
+  toast(eligible.length?`${eligible.length} CSA${eligible.length>1?'s':''} available — ${eligible[0].name} is the best match`:'No conflict-free CSA for that window');
+}
+
+/* ---------------- View switching + wiring ---------------- */
+let VIEW='day';
+function renderView(){
+  const titles={day:'Daily Timeline',week:'Weekly Schedule',month:'Monthly Load'};
+  document.getElementById('tlTitle').textContent=titles[VIEW];
+  document.getElementById('dayWrap').style.display = VIEW==='month'?'none':'block';
+  if(VIEW==='day') renderTimeline();
+  else if(VIEW==='week') renderWeek();
+  else renderMonth();
+}
+function refresh(){ renderCards(); renderView(); renderTable(); }
+
+document.getElementById('viewSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#viewSeg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); VIEW=b.dataset.v; renderView();
+});
+['daySel','statusFilter'].forEach(id=>document.getElementById(id).addEventListener('change',refresh));
+document.getElementById('q').addEventListener('input',()=>{renderView();renderTable();});
+document.getElementById('findBtn').addEventListener('click',findBest);
+['acStart','acEnd','acType'].forEach(id=>document.getElementById(id).addEventListener('input',updateDur));
+document.getElementById('acTz').addEventListener('change',updateDur);
+
+let toastT;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+
+/* modal close wiring */
+document.getElementById('confClose').addEventListener('click',closeConflicts);
+document.getElementById('confModal').addEventListener('click',e=>{ if(e.target.id==='confModal') closeConflicts(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeConflicts(); });
+
+/* theme toggle (persisted) */
+function applyTheme(mode){
+  document.documentElement.setAttribute('data-theme', mode);
+  document.getElementById('themeIcon').innerHTML = mode==='dark' ? '&#9788;' : '&#9790;';
+  document.getElementById('themeLbl').textContent = mode==='dark' ? 'Light' : 'Dark';
+  try{ localStorage.setItem('csa-theme', mode); }catch(e){}
+}
+let THEME='light';
+try{ THEME = localStorage.getItem('csa-theme') || 'light'; }catch(e){}
+applyTheme(THEME);
+document.getElementById('themeToggle').addEventListener('click',()=>{
+  THEME = document.documentElement.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+  applyTheme(THEME);
+});
+
+updateDur(); refresh();
+</script>
+</body>
+</html>
